@@ -6,6 +6,7 @@
 //
 
 import SwiftUI
+import SwiftData
 
 @main
 struct TsuwariLogApp: App {
@@ -13,5 +14,6 @@ struct TsuwariLogApp: App {
         WindowGroup {
             ContentView()
         }
+        .modelContainer(for: LogEntry.self)
     }
 }
