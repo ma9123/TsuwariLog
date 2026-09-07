@@ -4,10 +4,13 @@ import SwiftData
 /// 気分入力画面
 struct MoodEntryView: View {
     let modelContext: ModelContext
+    var existingEntry: LogEntry? = nil
     let onDismiss: () -> Void
 
     @State private var selectedMood: MoodLevel?
     @State private var entryDate = Date()
+
+    private var isEditing: Bool { existingEntry != nil }
 
     private var canComplete: Bool {
         selectedMood != nil
@@ -56,16 +59,30 @@ struct MoodEntryView: View {
             }
         }
         .background(Color.cardBackground)
+        .onAppear {
+            if let entry = existingEntry, case .mood(let level) = entry.content {
+                selectedMood = level
+                entryDate = entry.timestamp
+            }
+        }
     }
 
     private func saveEntry() {
         guard let mood = selectedMood else { return }
-        let entry = LogEntry(
-            category: .mood,
-            timestamp: entryDate,
-            content: .mood(level: mood)
-        )
-        modelContext.insert(entry)
+
+        if let entry = existingEntry {
+            // 既存エントリーを更新
+            entry.timestamp = entryDate
+            entry.content = .mood(level: mood)
+        } else {
+            // 新規エントリーを作成
+            let entry = LogEntry(
+                category: .mood,
+                timestamp: entryDate,
+                content: .mood(level: mood)
+            )
+            modelContext.insert(entry)
+        }
         onDismiss()
     }
 }

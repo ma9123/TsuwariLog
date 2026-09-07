@@ -7,6 +7,9 @@ struct TimelineView: View {
     @Environment(\.modelContext) private var modelContext
     @State private var showCategorySheet = false
     @State private var selectedCategory: RecordCategory?
+    @State private var entryToEdit: LogEntry?
+    @State private var entryToDelete: LogEntry?
+    @State private var showDeleteAlert = false
 
     /// 日付でグループ化した記録を取得
     private var entriesByDate: [(date: Date, entries: [LogEntry])] {
@@ -33,7 +36,14 @@ struct TimelineView: View {
                     LazyVStack(spacing: 0, pinnedViews: [.sectionHeaders]) {
                         ForEach(entriesByDate, id: \.date) { dateGroup in
                             Section {
-                                TimelineDateSection(entries: dateGroup.entries)
+                                TimelineDateSection(
+                                    entries: dateGroup.entries,
+                                    onEdit: { entry in entryToEdit = entry },
+                                    onDelete: { entry in
+                                        entryToDelete = entry
+                                        showDeleteAlert = true
+                                    }
+                                )
                             } header: {
                                 DateSectionHeader(date: dateGroup.date)
                             }
@@ -65,6 +75,24 @@ struct TimelineView: View {
             EntryRouter(category: category, modelContext: modelContext) {
                 selectedCategory = nil
             }
+        }
+        .fullScreenCover(item: $entryToEdit) { entry in
+            EntryEditRouter(entry: entry, modelContext: modelContext) {
+                entryToEdit = nil
+            }
+        }
+        .alert("この記録を削除しますか？", isPresented: $showDeleteAlert) {
+            Button("キャンセル", role: .cancel) {
+                entryToDelete = nil
+            }
+            Button("削除", role: .destructive) {
+                if let entry = entryToDelete {
+                    modelContext.delete(entry)
+                    entryToDelete = nil
+                }
+            }
+        } message: {
+            Text("この操作は取り消せません")
         }
     }
 }
@@ -148,6 +176,8 @@ struct DateSectionHeader: View {
 /// 日付セクション内のエントリーリスト
 struct TimelineDateSection: View {
     let entries: [LogEntry]
+    let onEdit: (LogEntry) -> Void
+    let onDelete: (LogEntry) -> Void
 
     var body: some View {
         ZStack(alignment: .leading) {
@@ -160,7 +190,11 @@ struct TimelineDateSection: View {
             // カードリスト
             VStack(spacing: Design.cardSpacing) {
                 ForEach(entries) { entry in
-                    TimelineCard(entry: entry)
+                    TimelineCard(
+                        entry: entry,
+                        onEdit: { onEdit(entry) },
+                        onDelete: { onDelete(entry) }
+                    )
                 }
             }
             .padding(.horizontal, Design.paddingXL)
@@ -171,6 +205,8 @@ struct TimelineDateSection: View {
 /// タイムラインカード（アイコン内蔵）
 struct TimelineCard: View {
     let entry: LogEntry
+    let onEdit: () -> Void
+    let onDelete: () -> Void
 
     // 気分の場合、具体的なレベルを取得
     private var moodLevel: MoodLevel? {
@@ -226,10 +262,18 @@ struct TimelineCard: View {
             Spacer()
 
             // メニューボタン
-            Button(action: {}) {
+            Menu {
+                Button(action: onEdit) {
+                    Label("編集", systemImage: "pencil")
+                }
+                Button(role: .destructive, action: onDelete) {
+                    Label("削除", systemImage: "trash")
+                }
+            } label: {
                 Image(systemName: "ellipsis")
                     .font(.system(size: 14))
                     .foregroundStyle(Color.textSecondary)
+                    .frame(width: 32, height: 32)
             }
         }
         .padding(.horizontal, Design.cardPadding)
@@ -251,7 +295,7 @@ struct TimelineCard: View {
     }
 }
 
-/// 入力画面ルーター
+/// 入力画面ルーター（新規作成用）
 struct EntryRouter: View {
     let category: RecordCategory
     let modelContext: ModelContext
@@ -273,6 +317,32 @@ struct EntryRouter: View {
             ClinicEntryView(modelContext: modelContext, onDismiss: onDismiss)
         case .memo:
             MemoEntryView(modelContext: modelContext, onDismiss: onDismiss)
+        }
+    }
+}
+
+/// 編集画面ルーター（既存エントリー編集用）
+struct EntryEditRouter: View {
+    let entry: LogEntry
+    let modelContext: ModelContext
+    let onDismiss: () -> Void
+
+    var body: some View {
+        switch entry.category {
+        case .mood:
+            MoodEntryView(modelContext: modelContext, existingEntry: entry, onDismiss: onDismiss)
+        case .symptom:
+            SymptomEntryView(modelContext: modelContext, existingEntry: entry, onDismiss: onDismiss)
+        case .food:
+            FoodEntryView(modelContext: modelContext, existingEntry: entry, onDismiss: onDismiss)
+        case .weight:
+            WeightEntryView(modelContext: modelContext, existingEntry: entry, onDismiss: onDismiss)
+        case .hydration:
+            HydrationEntryView(modelContext: modelContext, existingEntry: entry, onDismiss: onDismiss)
+        case .clinic:
+            ClinicEntryView(modelContext: modelContext, existingEntry: entry, onDismiss: onDismiss)
+        case .memo:
+            MemoEntryView(modelContext: modelContext, existingEntry: entry, onDismiss: onDismiss)
         }
     }
 }

@@ -4,12 +4,15 @@ import SwiftData
 /// 通院・健診入力画面
 struct ClinicEntryView: View {
     let modelContext: ModelContext
+    var existingEntry: LogEntry? = nil
     let onDismiss: () -> Void
 
     @State private var selectedType: ClinicType?
     @State private var hospitalName = ""
     @State private var note = ""
     @State private var entryDate = Date()
+
+    private var isEditing: Bool { existingEntry != nil }
 
     private var canComplete: Bool {
         selectedType != nil
@@ -87,20 +90,39 @@ struct ClinicEntryView: View {
             }
         }
         .background(Color.cardBackground)
+        .onAppear {
+            if let entry = existingEntry,
+               case .clinic(let type, let hospital, let noteText) = entry.content {
+                selectedType = type
+                hospitalName = hospital ?? ""
+                note = noteText ?? ""
+                entryDate = entry.timestamp
+            }
+        }
     }
 
     private func saveEntry() {
         guard let type = selectedType else { return }
-        let entry = LogEntry(
-            category: .clinic,
-            timestamp: entryDate,
-            content: .clinic(
+
+        if let entry = existingEntry {
+            entry.timestamp = entryDate
+            entry.content = .clinic(
                 type: type,
                 hospitalName: hospitalName.isEmpty ? nil : hospitalName,
                 note: note.isEmpty ? nil : note
             )
-        )
-        modelContext.insert(entry)
+        } else {
+            let entry = LogEntry(
+                category: .clinic,
+                timestamp: entryDate,
+                content: .clinic(
+                    type: type,
+                    hospitalName: hospitalName.isEmpty ? nil : hospitalName,
+                    note: note.isEmpty ? nil : note
+                )
+            )
+            modelContext.insert(entry)
+        }
         onDismiss()
     }
 }

@@ -4,12 +4,15 @@ import SwiftData
 /// メモ入力画面
 struct MemoEntryView: View {
     let modelContext: ModelContext
+    var existingEntry: LogEntry? = nil
     let onDismiss: () -> Void
 
     @State private var memoText = ""
     @State private var entryDate = Date()
 
     private let maxLength = 200
+
+    private var isEditing: Bool { existingEntry != nil }
 
     private var canComplete: Bool {
         !memoText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
@@ -65,17 +68,29 @@ struct MemoEntryView: View {
             .padding(.top, Design.paddingL)
         }
         .background(Color.cardBackground)
+        .onAppear {
+            if let entry = existingEntry, case .memo(let text) = entry.content {
+                memoText = text
+                entryDate = entry.timestamp
+            }
+        }
     }
 
     private func saveEntry() {
         let trimmedText = memoText.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmedText.isEmpty else { return }
-        let entry = LogEntry(
-            category: .memo,
-            timestamp: entryDate,
-            content: .memo(text: trimmedText)
-        )
-        modelContext.insert(entry)
+
+        if let entry = existingEntry {
+            entry.timestamp = entryDate
+            entry.content = .memo(text: trimmedText)
+        } else {
+            let entry = LogEntry(
+                category: .memo,
+                timestamp: entryDate,
+                content: .memo(text: trimmedText)
+            )
+            modelContext.insert(entry)
+        }
         onDismiss()
     }
 }

@@ -4,10 +4,13 @@ import SwiftData
 /// 水分入力画面
 struct HydrationEntryView: View {
     let modelContext: ModelContext
+    var existingEntry: LogEntry? = nil
     let onDismiss: () -> Void
 
     @State private var hydrationValue = ""
     @State private var entryDate = Date()
+
+    private var isEditing: Bool { existingEntry != nil }
 
     private var canComplete: Bool {
         guard let value = Int(hydrationValue), value > 0 else { return false }
@@ -85,16 +88,28 @@ struct HydrationEntryView: View {
             .padding(.top, Design.paddingL)
         }
         .background(Color.cardBackground)
+        .onAppear {
+            if let entry = existingEntry, case .hydration(let amount) = entry.content {
+                hydrationValue = String(amount)
+                entryDate = entry.timestamp
+            }
+        }
     }
 
     private func saveEntry() {
         guard let value = Int(hydrationValue), value > 0 else { return }
-        let entry = LogEntry(
-            category: .hydration,
-            timestamp: entryDate,
-            content: .hydration(amount: value)
-        )
-        modelContext.insert(entry)
+
+        if let entry = existingEntry {
+            entry.timestamp = entryDate
+            entry.content = .hydration(amount: value)
+        } else {
+            let entry = LogEntry(
+                category: .hydration,
+                timestamp: entryDate,
+                content: .hydration(amount: value)
+            )
+            modelContext.insert(entry)
+        }
         onDismiss()
     }
 }

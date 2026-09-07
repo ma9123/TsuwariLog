@@ -4,10 +4,13 @@ import SwiftData
 /// 症状入力画面
 struct SymptomEntryView: View {
     let modelContext: ModelContext
+    var existingEntry: LogEntry? = nil
     let onDismiss: () -> Void
 
     @State private var selectedSymptoms: Set<SymptomType> = []
     @State private var entryDate = Date()
+
+    private var isEditing: Bool { existingEntry != nil }
 
     private var canComplete: Bool {
         !selectedSymptoms.isEmpty
@@ -54,16 +57,28 @@ struct SymptomEntryView: View {
             }
         }
         .background(Color.cardBackground)
+        .onAppear {
+            if let entry = existingEntry, case .symptom(let types) = entry.content {
+                selectedSymptoms = Set(types)
+                entryDate = entry.timestamp
+            }
+        }
     }
 
     private func saveEntry() {
         guard !selectedSymptoms.isEmpty else { return }
-        let entry = LogEntry(
-            category: .symptom,
-            timestamp: entryDate,
-            content: .symptom(types: Array(selectedSymptoms))
-        )
-        modelContext.insert(entry)
+
+        if let entry = existingEntry {
+            entry.timestamp = entryDate
+            entry.content = .symptom(types: Array(selectedSymptoms))
+        } else {
+            let entry = LogEntry(
+                category: .symptom,
+                timestamp: entryDate,
+                content: .symptom(types: Array(selectedSymptoms))
+            )
+            modelContext.insert(entry)
+        }
         onDismiss()
     }
 }

@@ -4,6 +4,7 @@ import SwiftData
 /// 食べられた入力画面
 struct FoodEntryView: View {
     let modelContext: ModelContext
+    var existingEntry: LogEntry? = nil
     let onDismiss: () -> Void
 
     @State private var selectedFoods: Set<FoodItem> = []
@@ -14,6 +15,8 @@ struct FoodEntryView: View {
         GridItem(.flexible()),
         GridItem(.flexible())
     ]
+
+    private var isEditing: Bool { existingEntry != nil }
 
     private var canComplete: Bool {
         !selectedFoods.isEmpty
@@ -66,16 +69,28 @@ struct FoodEntryView: View {
             }
         }
         .background(Color.cardBackground)
+        .onAppear {
+            if let entry = existingEntry, case .food(let items) = entry.content {
+                selectedFoods = Set(items)
+                entryDate = entry.timestamp
+            }
+        }
     }
 
     private func saveEntry() {
         guard !selectedFoods.isEmpty else { return }
-        let entry = LogEntry(
-            category: .food,
-            timestamp: entryDate,
-            content: .food(items: Array(selectedFoods))
-        )
-        modelContext.insert(entry)
+
+        if let entry = existingEntry {
+            entry.timestamp = entryDate
+            entry.content = .food(items: Array(selectedFoods))
+        } else {
+            let entry = LogEntry(
+                category: .food,
+                timestamp: entryDate,
+                content: .food(items: Array(selectedFoods))
+            )
+            modelContext.insert(entry)
+        }
         onDismiss()
     }
 }

@@ -4,10 +4,13 @@ import SwiftData
 /// 体重入力画面
 struct WeightEntryView: View {
     let modelContext: ModelContext
+    var existingEntry: LogEntry? = nil
     let onDismiss: () -> Void
 
     @State private var weightValue = ""
     @State private var entryDate = Date()
+
+    private var isEditing: Bool { existingEntry != nil }
 
     private var canComplete: Bool {
         guard let value = Double(weightValue), value > 0 else { return false }
@@ -67,16 +70,28 @@ struct WeightEntryView: View {
             .padding(.top, Design.paddingL)
         }
         .background(Color.cardBackground)
+        .onAppear {
+            if let entry = existingEntry, case .weight(let value) = entry.content {
+                weightValue = String(format: "%.1f", value)
+                entryDate = entry.timestamp
+            }
+        }
     }
 
     private func saveEntry() {
         guard let value = Double(weightValue), value > 0 else { return }
-        let entry = LogEntry(
-            category: .weight,
-            timestamp: entryDate,
-            content: .weight(value: value)
-        )
-        modelContext.insert(entry)
+
+        if let entry = existingEntry {
+            entry.timestamp = entryDate
+            entry.content = .weight(value: value)
+        } else {
+            let entry = LogEntry(
+                category: .weight,
+                timestamp: entryDate,
+                content: .weight(value: value)
+            )
+            modelContext.insert(entry)
+        }
         onDismiss()
     }
 }
