@@ -209,6 +209,12 @@ struct TimelineCard: View {
                                 .lineLimit(1)
                         }
                     }
+                } else if case .memo = entry.content {
+                    // メモは普通の太さで表示
+                    Text(entry.summaryText)
+                        .font(.appBody(16))
+                        .foregroundStyle(Color.textPrimary)
+                        .lineLimit(2)
                 } else {
                     Text(entry.summaryText)
                         .font(.appHeadline(16))
