@@ -79,6 +79,7 @@ struct SymptomEntryView: View {
             )
             modelContext.insert(entry)
         }
+        UserSettings.shared.updateLastEntryDate()
         onDismiss()
     }
 }

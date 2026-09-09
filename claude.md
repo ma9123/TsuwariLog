@@ -5,36 +5,75 @@
 ## 技術スタック
 
 - **UI**: SwiftUI (iOS 17+)
-- **状態管理**: @Observable, @Query
+- **状態管理**: @Observable, @Query, @AppStorage
 - **データ永続化**: SwiftData (iOS 17+)
+- **グラフ**: Swift Charts
+- **通知**: UserNotifications
 - **アーキテクチャ**: シンプルなMVVM
 
-## 開発フェーズ
+## 開発状況
 
-- ✅ **Phase 1 - UIプロトタイプ** （完了）
-- ✅ **Phase 2 - SwiftData統合** （完了）
+**v1.0 リリース準備完了**
 
-### Phase 2の実装内容
+### 実装済み機能
 
-1. **モデルをSwiftData対応に変更**
-   - `LogEntry`を`@Model`クラスに変換
-   - `LogContent`をCodable対応（手動実装）
-   - `contentData: Data`で保存、計算プロパティで`LogContent`にアクセス
+1. **タイムライン表示**
+   - 日付ごとにグループ化されたカード表示
+   - 編集・削除機能（メニューから）
+   - 空状態のフレンドリーなメッセージ
+   - 妊娠週数バナー表示
 
-2. **データストアの実装**
-   - `TsuwariLogApp`で`ModelContainer`セットアップ
-   - `TimelineView`で`@Query`を使用してデータ取得
-   - 各Entry画面で`ModelContext.insert()`で保存
+2. **7カテゴリの記録入力**
+   - 気分（5段階）、症状、食べられた、体重、水分、通院・健診、メモ
+   - 日付・時刻選択で過去の記録も入力可能
 
-3. **日付・時刻選択機能**
-   - `EntryHeader`に日付タップで`DateTimePickerSheet`を表示
-   - グラフィカルなカレンダーUIで過去の記録も入力可能
+3. **カレンダー表示**
+   - 月間カレンダーに気分アイコン表示
+   - 日付タップでタイムラインにジャンプ
+
+4. **統計・まとめ画面**
+   - 月別/週数別の切り替え表示
+   - 気分分布、症状頻度、食べ物ランキング
+   - 体重推移グラフ、水分合計、通院履歴
+
+5. **設定画面**
+   - 出産予定日設定（妊娠週数自動計算）
+   - リマインダー通知（時刻設定可能）
+   - CSVデータエクスポート
+   - 全データ削除
+
+6. **リマインダー通知**
+   - 毎日指定時刻に通知
+   - 3日以内の記録有無で文言を変更
+   - アプリ起動時に再スケジュール
 
 ## 画面構成
 
-1. **TimelineView** - 起動時のメイン画面。記録をカード形式で時系列表示
-2. **CategorySelectionSheet** - +ボタンで表示するボトムシート。7カテゴリから選択
-3. **各Entry画面** - カテゴリごとの入力UI（日付・時刻選択可能）
+```
+TimelineView（メイン）
+├── TimelineHeader（カレンダー/統計/設定ボタン）
+├── PregnancyWeekBanner（妊娠週数表示）
+├── TimelineEmptyState（記録なし時）
+└── TimelineDateSection（日付ごとのカード）
+
+CalendarView（カレンダー）
+├── CalendarMonthSelector
+└── CalendarDayCell（気分アイコン付き）
+
+StatisticsView（まとめ）
+├── モード切替（月/週数）
+├── MonthSelector / WeekSelector
+└── 6つのサマリーカード
+
+SettingsView（設定）
+├── 妊娠情報（出産予定日、週数）
+├── リマインダー
+├── データ管理
+└── アプリ情報
+
+各EntryView（記録入力）
+└── EntryHeader（日付選択）
+```
 
 ## 7つの記録カテゴリ
 
@@ -59,15 +98,6 @@
 - タイムラインのメモは普通の太さで表示
 - 参考: アプリ「きろく」のタイムライン型UI
 
-## UXの重要ポイント
-
-- 「今日の記録」専用画面は作らない
-- 起動時はタイムラインを表示
-- 右下の＋から記録カテゴリを選択
-- 同じ日に複数カテゴリを記録できる
-- 各記録には記録時刻を保持する
-- 日付・時刻をタップして過去の記録も入力可能
-
 ## ディレクトリ構造
 
 ```
@@ -81,10 +111,17 @@ TsuwariLog/
 ├── Models/
 │   ├── RecordCategory.swift
 │   ├── LogEntry.swift (SwiftData @Model)
-│   └── DateExtensions.swift (Date extension)
+│   ├── UserSettings.swift (設定・通知管理)
+│   └── DateExtensions.swift
 ├── Views/
 │   ├── Timeline/
 │   │   └── TimelineView.swift
+│   ├── Calendar/
+│   │   └── CalendarView.swift
+│   ├── Statistics/
+│   │   └── StatisticsView.swift
+│   ├── Settings/
+│   │   └── SettingsView.swift
 │   ├── CategorySelection/
 │   │   └── CategorySelectionSheet.swift
 │   └── Entry/
@@ -98,37 +135,18 @@ TsuwariLog/
 ├── Components/
 │   ├── CategoryIcon.swift
 │   ├── FloatingAddButton.swift
-│   ├── EntryHeader.swift (DateTimePickerSheet含む)
+│   ├── EntryHeader.swift
 │   ├── NumericKeypad.swift
 │   └── HintBox.swift
 └── Assets.xcassets/
-    ├── 気分アイコン/
-    │   ├── MoodVeryGood.imageset
-    │   ├── MoodGood.imageset
-    │   ├── MoodNormal.imageset
-    │   ├── MoodBad.imageset
-    │   └── MoodVeryBad.imageset
-    ├── 症状アイコン/
-    │   └── MemoKarte.imageset（カルテ）
-    ├── 食べ物アイコン/
-    │   ├── FoodOnigiri.imageset
-    │   ├── FoodUdon.imageset
-    │   ├── FoodBread.imageset
-    │   ├── FoodRice.imageset
-    │   ├── FoodKaraage.imageset
-    │   ├── FoodMeat.imageset
-    │   ├── FoodEgg.imageset
-    │   ├── FoodDairy.imageset
-    │   ├── FoodBanana.imageset
-    │   ├── FoodFruit.imageset
-    │   ├── FoodJelly.imageset
-    │   └── FoodOther.imageset
-    ├── 体重アイコン/
-    │   └── WeightScale.imageset
-    └── 通院アイコン/
-        ├── ClinicStethoscope.imageset
-        └── ClinicHospital.imageset
+    └── (カスタムアイコン各種)
 ```
+
+## リリース前TODO
+
+- [ ] アプリアイコン設定
+- [ ] Bundle Identifier設定
+- [ ] プライバシーポリシー/利用規約URL設定（SettingsView.swiftのコメント解除）
 
 ## コーディング規約
 

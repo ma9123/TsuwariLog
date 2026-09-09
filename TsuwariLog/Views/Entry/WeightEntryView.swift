@@ -92,6 +92,7 @@ struct WeightEntryView: View {
             )
             modelContext.insert(entry)
         }
+        UserSettings.shared.updateLastEntryDate()
         onDismiss()
     }
 }

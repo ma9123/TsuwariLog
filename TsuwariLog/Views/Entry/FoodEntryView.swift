@@ -91,6 +91,7 @@ struct FoodEntryView: View {
             )
             modelContext.insert(entry)
         }
+        UserSettings.shared.updateLastEntryDate()
         onDismiss()
     }
 }

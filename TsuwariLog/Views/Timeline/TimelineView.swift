@@ -10,6 +10,10 @@ struct TimelineView: View {
     @State private var entryToEdit: LogEntry?
     @State private var entryToDelete: LogEntry?
     @State private var showDeleteAlert = false
+    @State private var showStatistics = false
+    @State private var showSettings = false
+    @State private var showCalendar = false
+    @State private var scrollToDate: Date?
 
     /// 日付でグループ化した記録を取得
     private var entriesByDate: [(date: Date, entries: [LogEntry])] {
@@ -29,27 +33,59 @@ struct TimelineView: View {
             
             VStack(spacing: 0) {
                 // ヘッダー
-                TimelineHeader()
+                TimelineHeader(showStatistics: $showStatistics, showSettings: $showSettings, showCalendar: $showCalendar)
+
+                // 妊娠週数バナー
+                PregnancyWeekBanner()
 
                 // タイムラインコンテンツ
-                ScrollView {
-                    LazyVStack(spacing: 0, pinnedViews: [.sectionHeaders]) {
-                        ForEach(entriesByDate, id: \.date) { dateGroup in
-                            Section {
-                                TimelineDateSection(
-                                    entries: dateGroup.entries,
-                                    onEdit: { entry in entryToEdit = entry },
-                                    onDelete: { entry in
-                                        entryToDelete = entry
-                                        showDeleteAlert = true
+                if entries.isEmpty {
+                    TimelineEmptyState()
+                } else {
+                    ScrollViewReader { proxy in
+                        ScrollView {
+                            LazyVStack(spacing: 0, pinnedViews: [.sectionHeaders]) {
+                                ForEach(entriesByDate, id: \.date) { dateGroup in
+                                    Section {
+                                        TimelineDateSection(
+                                            entries: dateGroup.entries,
+                                            onEdit: { entry in entryToEdit = entry },
+                                            onDelete: { entry in
+                                                entryToDelete = entry
+                                                showDeleteAlert = true
+                                            }
+                                        )
+                                    } header: {
+                                        DateSectionHeader(date: dateGroup.date)
                                     }
-                                )
-                            } header: {
-                                DateSectionHeader(date: dateGroup.date)
+                                    .id(dateGroup.date)
+                                }
+                            }
+                            .padding(.bottom, 100) // FAB用の余白
+                        }
+                        .onChange(of: scrollToDate) { _, newDate in
+                            if let targetDate = newDate {
+                                // 該当日付または最も近い日付にスクロール
+                                let calendar = Calendar.current
+                                let targetDay = calendar.startOfDay(for: targetDate)
+
+                                // 完全一致を探す
+                                if let exactMatch = entriesByDate.first(where: { calendar.isDate($0.date, inSameDayAs: targetDay) }) {
+                                    withAnimation {
+                                        proxy.scrollTo(exactMatch.date, anchor: .top)
+                                    }
+                                } else {
+                                    // 一番近い過去の日付を探す
+                                    if let closestDate = entriesByDate.first(where: { $0.date <= targetDay })?.date {
+                                        withAnimation {
+                                            proxy.scrollTo(closestDate, anchor: .top)
+                                        }
+                                    }
+                                }
+                                scrollToDate = nil
                             }
                         }
                     }
-                    .padding(.bottom, 100) // FAB用の余白
                 }
             }
 
@@ -94,14 +130,30 @@ struct TimelineView: View {
         } message: {
             Text("この操作は取り消せません")
         }
+        .fullScreenCover(isPresented: $showStatistics) {
+            StatisticsView()
+        }
+        .fullScreenCover(isPresented: $showSettings) {
+            SettingsView()
+        }
+        .sheet(isPresented: $showCalendar) {
+            CalendarView { selectedDate in
+                scrollToDate = selectedDate
+            }
+            .presentationDetents([.large])
+        }
     }
 }
 
 /// タイムラインヘッダー
 struct TimelineHeader: View {
+    @Binding var showStatistics: Bool
+    @Binding var showSettings: Bool
+    @Binding var showCalendar: Bool
+
     var body: some View {
         HStack {
-            Button(action: {}) {
+            Button(action: { showCalendar = true }) {
                 Image(systemName: "calendar")
                     .font(.system(size: 20))
                     .foregroundStyle(Color.textPrimary)
@@ -116,13 +168,13 @@ struct TimelineHeader: View {
             Spacer()
 
             HStack(spacing: 16) {
-                Button(action: {}) {
-                    Image(systemName: "line.3.horizontal.decrease")
+                Button(action: { showStatistics = true }) {
+                    Image(systemName: "chart.line.uptrend.xyaxis")
                         .font(.system(size: 18))
                         .foregroundStyle(Color.textPrimary)
                 }
 
-                Button(action: {}) {
+                Button(action: { showSettings = true }) {
                     Image(systemName: "ellipsis")
                         .font(.system(size: 18))
                         .foregroundStyle(Color.textPrimary)
@@ -132,6 +184,68 @@ struct TimelineHeader: View {
         .padding(.horizontal, Design.paddingM)
         .padding(.vertical, Design.paddingS)
         .background(Color.cardBackground)
+    }
+}
+
+/// 空の状態表示
+struct TimelineEmptyState: View {
+    var body: some View {
+        VStack(spacing: Design.paddingL) {
+            Spacer()
+
+            // イラスト
+            Image("MoodGood")
+                .resizable()
+                .scaledToFit()
+                .frame(width: 80, height: 80)
+                .opacity(0.8)
+
+            VStack(spacing: Design.paddingS) {
+                Text("まだ記録がありません")
+                    .font(.appHeadline())
+                    .foregroundStyle(Color.textPrimary)
+
+                Text("右下の＋ボタンから\n今日の体調を記録してみましょう")
+                    .font(.appBody())
+                    .foregroundStyle(Color.textSecondary)
+                    .multilineTextAlignment(.center)
+            }
+
+            Spacer()
+            Spacer()
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .padding(.horizontal, Design.paddingL)
+    }
+}
+
+/// 妊娠週数バナー
+struct PregnancyWeekBanner: View {
+    @StateObject private var settings = UserSettings.shared
+
+    var body: some View {
+        if let weekString = settings.pregnancyWeekString {
+            HStack(spacing: Design.paddingS) {
+                Image(systemName: "heart.fill")
+                    .font(.system(size: 14))
+                    .foregroundStyle(Color.symptomPastel)
+
+                Text("現在 \(weekString)")
+                    .font(.appBody())
+                    .foregroundStyle(Color.textPrimary)
+
+                Spacer()
+
+                if let daysString = settings.daysUntilDueString {
+                    Text(daysString)
+                        .font(.appCaption())
+                        .foregroundStyle(Color.textSecondary)
+                }
+            }
+            .padding(.horizontal, Design.paddingM)
+            .padding(.vertical, Design.paddingS)
+            .background(Color.moodPastel.opacity(0.5))
+        }
     }
 }
 

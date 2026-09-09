@@ -10,6 +10,11 @@ import SwiftData
 
 @main
 struct TsuwariLogApp: App {
+    init() {
+        // アプリ起動時にリマインダーを再スケジュール
+        UserSettings.shared.setupRemindersOnLaunch()
+    }
+
     var body: some Scene {
         WindowGroup {
             ContentView()
