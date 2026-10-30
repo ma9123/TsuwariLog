@@ -25,8 +25,8 @@ struct SettingsView: View {
                 // リマインダーセクション
                 reminderSection
 
-                // データ管理セクション
-                dataSection
+                // データ管理セクション（一旦非表示。dataSectionの実装は残してある）
+//                dataSection
 
                 // アプリ情報セクション
                 appInfoSection

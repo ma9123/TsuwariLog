@@ -80,7 +80,7 @@ struct ClinicEntryView: View {
                             .font(.subheadline)
                             .foregroundStyle(Color.textSecondary)
 
-                        TextField("例：メトクロプラミド 5mg", text: $prescription, axis: .vertical)
+                        TextField("", text: $prescription, axis: .vertical)
                             .textFieldStyle(.plain)
                             .lineLimit(2...4)
                             .padding(Design.paddingM)
