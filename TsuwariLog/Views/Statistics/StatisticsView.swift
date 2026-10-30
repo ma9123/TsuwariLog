@@ -364,18 +364,23 @@ struct MoodSummaryCard: View {
 struct SymptomSummaryCard: View {
     let entries: [LogEntry]
 
-    private var symptomCounts: [(symptom: SymptomType, count: Int)] {
-        var counts: [SymptomType: Int] = [:]
+    /// 症状ごとの回数（「その他」は自由記述の内容ごとに集計）
+    private var symptomCounts: [(label: String, count: Int)] {
+        var counts: [String: Int] = [:]
         for entry in entries {
-            if case .symptom(let types) = entry.content {
+            if case .symptom(let types, let otherText) = entry.content {
                 for type in types {
-                    counts[type, default: 0] += 1
+                    if type == .other, let text = otherText, !text.isEmpty {
+                        counts[text, default: 0] += 1
+                    } else {
+                        counts[type.rawValue, default: 0] += 1
+                    }
                 }
             }
         }
         return counts
-            .map { (symptom: $0.key, count: $0.value) }
-            .sorted { $0.count > $1.count }
+            .map { (label: $0.key, count: $0.value) }
+            .sorted { $0.count > $1.count || ($0.count == $1.count && $0.label < $1.label) }
     }
 
     private var totalCount: Int {
@@ -394,9 +399,9 @@ struct SymptomSummaryCard: View {
             if hasData {
                 // 症状リスト（最大5件表示）
                 VStack(spacing: Design.paddingS) {
-                    ForEach(symptomCounts.prefix(5), id: \.symptom) { item in
+                    ForEach(symptomCounts.prefix(5), id: \.label) { item in
                         HStack {
-                            Text(item.symptom.rawValue)
+                            Text(item.label)
                                 .font(.appBody())
                                 .foregroundStyle(Color.textPrimary)
 
@@ -429,7 +434,7 @@ struct FoodSummaryCard: View {
     private var foodCounts: [(food: FoodItem, count: Int)] {
         var counts: [FoodItem: Int] = [:]
         for entry in entries {
-            if case .food(let items) = entry.content {
+            if case .food(let items, _) = entry.content {
                 for item in items {
                     counts[item, default: 0] += 1
                 }
@@ -686,7 +691,7 @@ struct ClinicSummaryCard: View {
 
     private var clinicEntries: [(date: Date, type: ClinicType, hospitalName: String?)] {
         entries.compactMap { entry in
-            if case .clinic(let type, let hospitalName, _) = entry.content {
+            if case .clinic(let type, let hospitalName, _, _) = entry.content {
                 return (date: entry.timestamp, type: type, hospitalName: hospitalName)
             }
             return nil

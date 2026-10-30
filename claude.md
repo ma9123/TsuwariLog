@@ -80,11 +80,11 @@ SettingsView（設定）
 | カテゴリ | 入力形式 | パステルカラー | カスタムアイコン |
 |---------|---------|--------------|----------------|
 | 気分 | 5段階選択 | 黄色 | MoodVeryGood〜MoodVeryBad |
-| 症状 | カード選択（複数選択） | ピンク | MemoKarte（カルテ） |
-| 食べられた | グリッド選択（複数選択） | ベージュ | FoodOnigiri〜FoodOther（12種） |
+| 症状 | カード選択（複数選択・「その他」は自由記述） | ピンク | MemoKarte（カルテ） |
+| 食べられた | グリッド選択（複数選択）＋自由記述 | ベージュ | FoodOnigiri〜FoodOther（11種） |
 | 体重 | 数値入力（テンキー） | 緑 | WeightScale |
 | 水分 | 数値入力（テンキー＋クイック入力） | 水色 | SF Symbols |
-| 通院・健診 | 2択＋テキスト入力 | 薄紫 | ClinicStethoscope, ClinicHospital |
+| 通院・健診 | 2択＋テキスト入力（病院名・処方薬・メモ） | 薄紫 | ClinicStethoscope, ClinicHospital |
 | メモ | テキスト入力 | グレー | SF Symbols |
 
 ## デザイン方針

@@ -8,9 +8,28 @@ struct SymptomEntryView: View {
     let onDismiss: () -> Void
 
     @State private var selectedSymptoms: Set<SymptomType> = []
+    @State private var otherText = ""
     @State private var entryDate = Date()
 
+    @FocusState private var isOtherFieldFocused: Bool
+
+    private let maxOtherLength = 50
+
     private var isEditing: Bool { existingEntry != nil }
+
+    /// 「その他」が選択されているか
+    private var isOtherSelected: Bool {
+        selectedSymptoms.contains(.other)
+    }
+
+    /// enumの定義順に並べた選択中の症状
+    private var orderedSymptoms: [SymptomType] {
+        SymptomType.allCases.filter { selectedSymptoms.contains($0) }
+    }
+
+    private var trimmedOtherText: String {
+        otherText.trimmingCharacters(in: .whitespacesAndNewlines)
+    }
 
     private var canComplete: Bool {
         !selectedSymptoms.isEmpty
@@ -44,22 +63,55 @@ struct SymptomEntryView: View {
                                 withAnimation(Design.standardAnimation) {
                                     if selectedSymptoms.contains(symptom) {
                                         selectedSymptoms.remove(symptom)
+                                        if symptom == .other {
+                                            isOtherFieldFocused = false
+                                        }
                                     } else {
                                         selectedSymptoms.insert(symptom)
+                                        if symptom == .other {
+                                            isOtherFieldFocused = true
+                                        }
                                     }
                                 }
                             }
                         }
                     }
                     .padding(.horizontal, Design.paddingM)
+
+                    // 「その他」の自由記述
+                    if isOtherSelected {
+                        VStack(alignment: .leading, spacing: Design.paddingS) {
+                            Text("その他の症状（任意）")
+                                .font(.subheadline)
+                                .foregroundStyle(Color.textSecondary)
+
+                            TextField("例：寒気、胸やけ", text: $otherText)
+                                .textFieldStyle(.plain)
+                                .focused($isOtherFieldFocused)
+                                .submitLabel(.done)
+                                .padding(Design.paddingM)
+                                .background(
+                                    RoundedRectangle(cornerRadius: Design.cardRadius)
+                                        .fill(Color.appBackground)
+                                )
+                                .onChange(of: otherText) { _, newValue in
+                                    if newValue.count > maxOtherLength {
+                                        otherText = String(newValue.prefix(maxOtherLength))
+                                    }
+                                }
+                        }
+                        .padding(.horizontal, Design.paddingM)
+                        .transition(.opacity.combined(with: .move(edge: .top)))
+                    }
                 }
                 .padding(.top, Design.paddingL)
             }
         }
         .background(Color.cardBackground)
         .onAppear {
-            if let entry = existingEntry, case .symptom(let types) = entry.content {
+            if let entry = existingEntry, case .symptom(let types, let text) = entry.content {
                 selectedSymptoms = Set(types)
+                otherText = text ?? ""
                 entryDate = entry.timestamp
             }
         }
@@ -68,14 +120,17 @@ struct SymptomEntryView: View {
     private func saveEntry() {
         guard !selectedSymptoms.isEmpty else { return }
 
+        let text = isOtherSelected && !trimmedOtherText.isEmpty ? trimmedOtherText : nil
+        let content = LogContent.symptom(types: orderedSymptoms, otherText: text)
+
         if let entry = existingEntry {
             entry.timestamp = entryDate
-            entry.content = .symptom(types: Array(selectedSymptoms))
+            entry.content = content
         } else {
             let entry = LogEntry(
                 category: .symptom,
                 timestamp: entryDate,
-                content: .symptom(types: Array(selectedSymptoms))
+                content: content
             )
             modelContext.insert(entry)
         }

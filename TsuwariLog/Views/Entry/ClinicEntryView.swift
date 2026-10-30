@@ -9,10 +9,17 @@ struct ClinicEntryView: View {
 
     @State private var selectedType: ClinicType?
     @State private var hospitalName = ""
+    @State private var prescription = ""
     @State private var note = ""
     @State private var entryDate = Date()
 
+    private let maxPrescriptionLength = 100
+
     private var isEditing: Bool { existingEntry != nil }
+
+    private var trimmedPrescription: String {
+        prescription.trimmingCharacters(in: .whitespacesAndNewlines)
+    }
 
     private var canComplete: Bool {
         selectedType != nil
@@ -67,6 +74,28 @@ struct ClinicEntryView: View {
                     }
                     .padding(.horizontal, Design.paddingM)
 
+                    // 処方薬入力
+                    VStack(alignment: .leading, spacing: Design.paddingS) {
+                        Text("処方された薬（任意）")
+                            .font(.subheadline)
+                            .foregroundStyle(Color.textSecondary)
+
+                        TextField("例：メトクロプラミド 5mg", text: $prescription, axis: .vertical)
+                            .textFieldStyle(.plain)
+                            .lineLimit(2...4)
+                            .padding(Design.paddingM)
+                            .background(
+                                RoundedRectangle(cornerRadius: Design.cardRadius)
+                                    .fill(Color.appBackground)
+                            )
+                            .onChange(of: prescription) { _, newValue in
+                                if newValue.count > maxPrescriptionLength {
+                                    prescription = String(newValue.prefix(maxPrescriptionLength))
+                                }
+                            }
+                    }
+                    .padding(.horizontal, Design.paddingM)
+
                     // メモ入力
                     VStack(alignment: .leading, spacing: Design.paddingS) {
                         Text("メモ（任意）")
@@ -92,9 +121,10 @@ struct ClinicEntryView: View {
         .background(Color.cardBackground)
         .onAppear {
             if let entry = existingEntry,
-               case .clinic(let type, let hospital, let noteText) = entry.content {
+               case .clinic(let type, let hospital, let noteText, let medicine) = entry.content {
                 selectedType = type
                 hospitalName = hospital ?? ""
+                prescription = medicine ?? ""
                 note = noteText ?? ""
                 entryDate = entry.timestamp
             }
@@ -104,22 +134,21 @@ struct ClinicEntryView: View {
     private func saveEntry() {
         guard let type = selectedType else { return }
 
+        let content = LogContent.clinic(
+            type: type,
+            hospitalName: hospitalName.isEmpty ? nil : hospitalName,
+            note: note.isEmpty ? nil : note,
+            prescription: trimmedPrescription.isEmpty ? nil : trimmedPrescription
+        )
+
         if let entry = existingEntry {
             entry.timestamp = entryDate
-            entry.content = .clinic(
-                type: type,
-                hospitalName: hospitalName.isEmpty ? nil : hospitalName,
-                note: note.isEmpty ? nil : note
-            )
+            entry.content = content
         } else {
             let entry = LogEntry(
                 category: .clinic,
                 timestamp: entryDate,
-                content: .clinic(
-                    type: type,
-                    hospitalName: hospitalName.isEmpty ? nil : hospitalName,
-                    note: note.isEmpty ? nil : note
-                )
+                content: content
             )
             modelContext.insert(entry)
         }

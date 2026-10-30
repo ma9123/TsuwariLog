@@ -8,6 +8,7 @@ struct FoodEntryView: View {
     let onDismiss: () -> Void
 
     @State private var selectedFoods: Set<FoodItem> = []
+    @State private var otherText = ""
     @State private var entryDate = Date()
 
     private let columns = [
@@ -16,10 +17,22 @@ struct FoodEntryView: View {
         GridItem(.flexible())
     ]
 
+    private let maxOtherLength = 50
+
     private var isEditing: Bool { existingEntry != nil }
 
+    /// enumの定義順に並べた選択中の食べ物
+    private var orderedFoods: [FoodItem] {
+        FoodItem.allCases.filter { selectedFoods.contains($0) }
+    }
+
+    private var trimmedOtherText: String {
+        otherText.trimmingCharacters(in: .whitespacesAndNewlines)
+    }
+
+    /// グリッド選択か自由記述のどちらかがあれば保存できる
     private var canComplete: Bool {
-        !selectedFoods.isEmpty
+        !selectedFoods.isEmpty || !trimmedOtherText.isEmpty
     }
 
     var body: some View {
@@ -64,30 +77,59 @@ struct FoodEntryView: View {
                         }
                     }
                     .padding(.horizontal, Design.paddingM)
+
+                    // 自由記述（リストにないもの）
+                    VStack(alignment: .leading, spacing: Design.paddingS) {
+                        Text("自由記述（任意）")
+                            .font(.subheadline)
+                            .foregroundStyle(Color.textSecondary)
+
+                        TextField("リストにないものを書けます", text: $otherText)
+                            .textFieldStyle(.plain)
+                            .submitLabel(.done)
+                            .padding(Design.paddingM)
+                            .background(
+                                RoundedRectangle(cornerRadius: Design.cardRadius)
+                                    .fill(Color.appBackground)
+                            )
+                            .onChange(of: otherText) { _, newValue in
+                                if newValue.count > maxOtherLength {
+                                    otherText = String(newValue.prefix(maxOtherLength))
+                                }
+                            }
+                    }
+                    .padding(.horizontal, Design.paddingM)
+                    .padding(.top, Design.paddingS)
                 }
                 .padding(.top, Design.paddingL)
             }
         }
         .background(Color.cardBackground)
         .onAppear {
-            if let entry = existingEntry, case .food(let items) = entry.content {
+            if let entry = existingEntry, case .food(let items, let text) = entry.content {
                 selectedFoods = Set(items)
+                otherText = text ?? ""
                 entryDate = entry.timestamp
             }
         }
     }
 
     private func saveEntry() {
-        guard !selectedFoods.isEmpty else { return }
+        guard canComplete else { return }
+
+        let content = LogContent.food(
+            items: orderedFoods,
+            otherText: trimmedOtherText.isEmpty ? nil : trimmedOtherText
+        )
 
         if let entry = existingEntry {
             entry.timestamp = entryDate
-            entry.content = .food(items: Array(selectedFoods))
+            entry.content = content
         } else {
             let entry = LogEntry(
                 category: .food,
                 timestamp: entryDate,
-                content: .food(items: Array(selectedFoods))
+                content: content
             )
             modelContext.insert(entry)
         }

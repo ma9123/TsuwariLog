@@ -346,7 +346,7 @@ struct TimelineCard: View {
                     .foregroundStyle(Color.textSecondary)
 
                 // 通院・健診の場合は病院名をグレーで表示
-                if case .clinic(let type, let hospitalName, _) = entry.content {
+                if case .clinic(let type, let hospitalName, let note, let prescription) = entry.content {
                     VStack(alignment: .leading, spacing: 2) {
                         Text(type.rawValue)
                             .font(.appHeadline(16))
@@ -357,6 +357,22 @@ struct TimelineCard: View {
                                 .font(.appCaption())
                                 .foregroundStyle(Color.textSecondary)
                                 .lineLimit(1)
+                        }
+
+                        // 処方された薬
+                        if let medicine = prescription, !medicine.isEmpty {
+                            Text("処方：\(medicine)")
+                                .font(.appCaption())
+                                .foregroundStyle(Color.textSecondary)
+                                .lineLimit(2)
+                        }
+
+                        // メモ
+                        if let noteText = note, !noteText.isEmpty {
+                            Text(noteText)
+                                .font(.appCaption())
+                                .foregroundStyle(Color.textSecondary)
+                                .lineLimit(2)
                         }
                     }
                 } else if case .memo = entry.content {
